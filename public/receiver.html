@@ -31,10 +31,14 @@
     }
 
     const socket = io();
+    const seenIds = new Set();
     const container = document.getElementById('messages-container');
     const idleMsg = document.getElementById('idle-msg');
 
-    function displayMessage(text, timestamp) {
+    function displayMessage(id, text, timestamp, isMissed = false) {
+      if (seenIds.has(id)) return;
+      seenIds.add(id);
+
       if (idleMsg) idleMsg.style.display = 'none';
       
       const timeStr = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -42,7 +46,7 @@
       el.className = 'msg-card';
       el.innerHTML = `
         <div class="msg-content">
-          <div class="msg-text">${text}</div>
+          <div class="msg-text">${text}${isMissed ? ' (Missed)' : ''}</div>
           <div class="msg-time">${timeStr}</div>
         </div>
       `;
@@ -58,12 +62,12 @@
     }
 
     socket.on('new_message', (msg) => {
-      displayMessage(msg.text, msg.timestamp);
+      displayMessage(msg.id, msg.text, msg.timestamp, false);
     });
 
-    socket.on('pending_messages', (msgs) => {
+    socket.on('sync_messages', (msgs) => {
       msgs.forEach(msg => {
-        displayMessage(msg.text + ' (Missed)', msg.timestamp);
+        displayMessage(msg.id, msg.text, msg.timestamp, true);
       });
     });
 

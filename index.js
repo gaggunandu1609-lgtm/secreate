@@ -15,8 +15,8 @@ const PORT = process.env.PORT || 3000;
 const SENDER_PIN = process.env.SENDER_PIN || '1111';
 const RECEIVER_PIN = process.env.RECEIVER_PIN || '2222';
 
-// In-memory queue strictly for offline messages (Zero-Trace)
-let pendingMessages = [];
+// Buffer messages for exactly 10 minutes to prevent loss from zombie sockets
+let messageBuffer = [];
 let receiverSockets = [];
 
 // Web Push setup
@@ -107,11 +107,8 @@ io.on('connection', (socket) => {
   if (role === 'receiver') {
     receiverSockets.push(socket);
     
-    // Deliver offline pending messages immediately
-    if (pendingMessages.length > 0) {
-      socket.emit('pending_messages', pendingMessages);
-      pendingMessages = []; // Wipe trace immediately
-    }
+    // Deliver all buffered messages immediately to cover zombie socket drops
+    socket.emit('sync_messages', messageBuffer);
 
     socket.on('disconnect', () => {
       receiverSockets = receiverSockets.filter(s => s !== socket);
@@ -120,15 +117,19 @@ io.on('connection', (socket) => {
   
   else if (role === 'sender') {
     socket.on('send_message', async (data) => {
-      const msg = { text: data.text, timestamp: new Date().toISOString() };
+      const msg = { id: Date.now().toString(), text: data.text, timestamp: new Date().toISOString() };
+
+      // ALWAYS buffer message for exactly 10 minutes
+      messageBuffer.push(msg);
+      setTimeout(() => {
+        messageBuffer = messageBuffer.filter(m => m.id !== msg.id);
+      }, 600000);
 
       if (receiverSockets.length > 0) {
-        // Receiver is ONLINE - send instantly via socket, do NOT save anywhere
+        // Receiver is ONLINE - send instantly via socket
         receiverSockets.forEach(s => s.emit('new_message', msg));
       } else {
-        // Receiver is OFFLINE - queue in memory and trigger push notifications
-        pendingMessages.push(msg);
-        
+        // Receiver is OFFLINE - trigger push notifications
         const payload = JSON.stringify({ title: 'Quick Signal', body: msg.text });
         
         for (let i = pushSubscriptions.length - 1; i >= 0; i--) {
