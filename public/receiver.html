@@ -48,13 +48,13 @@
       `;
       container.prepend(el);
 
-      // Auto-delete the message after 15 seconds for zero-trace
+      // Auto-delete the message after 10 minutes for zero-trace
       setTimeout(() => {
         el.remove();
         if (container.querySelectorAll('.msg-card').length === 0) {
           idleMsg.style.display = 'block';
         }
-      }, 15000);
+      }, 600000);
     }
 
     socket.on('new_message', (msg) => {
