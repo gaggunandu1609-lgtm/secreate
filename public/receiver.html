@@ -35,12 +35,9 @@
     const idleMsg = document.getElementById('idle-msg');
 
     function displayMessage(text, timestamp) {
-      if (idleMsg) {
-        idleMsg.style.display = 'none';
-      }
+      if (idleMsg) idleMsg.style.display = 'none';
       
       const timeStr = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      
       const el = document.createElement('div');
       el.className = 'msg-card';
       el.innerHTML = `
@@ -51,23 +48,22 @@
       `;
       container.prepend(el);
 
-      // Play subtle sound if permitted by browser
-      try {
-        const audio = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...'); // basic beep placeholder, or just skip audio to be safe.
-        // audio.play();
-      } catch (e) {}
+      // Auto-delete the message after 15 seconds for zero-trace
+      setTimeout(() => {
+        el.remove();
+        if (container.querySelectorAll('.msg-card').length === 0) {
+          idleMsg.style.display = 'block';
+        }
+      }, 15000);
     }
 
     socket.on('new_message', (msg) => {
       displayMessage(msg.text, msg.timestamp);
     });
 
-    socket.on('message_history', (msgs) => {
-      // Clear container except for the idle message
-      container.innerHTML = '<p class="idle-text" id="idle-msg" style="display: none;">System Online. Monitoring active...</p>';
-      
+    socket.on('pending_messages', (msgs) => {
       msgs.forEach(msg => {
-        displayMessage(msg.text, msg.timestamp);
+        displayMessage(msg.text + ' (Missed)', msg.timestamp);
       });
     });
 

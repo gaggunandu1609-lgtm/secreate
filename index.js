@@ -15,15 +15,11 @@ const PORT = process.env.PORT || 3000;
 const SENDER_PIN = process.env.SENDER_PIN || '1111';
 const RECEIVER_PIN = process.env.RECEIVER_PIN || '2222';
 
-// In-memory message history to persist while the server is running
-// This ensures that when he reconnects, he sees all past messages for this session
-const MAX_HISTORY = 50;
-let messageHistory = [];
+// In-memory queue strictly for offline messages (Zero-Trace)
+let pendingMessages = [];
 let receiverSockets = [];
 
 // Web Push setup
-// We use static keys now so that if Render restarts the server,
-// the browser's push subscription doesn't become invalid.
 const VAPID_PUBLIC = process.env.VAPID_PUBLIC || 'BLAVp--RcBuKSQODr9sHVoj6Rolu1FYc8PfAmxyOh_wPR3Qek1pGjvH7dZMmc-KIRrtsUybNh8KRupBLi2Pl4FU';
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE || 'H6LdLSa3C1kShCJg3NrWOnFixfwaG84uZo8GdljuQjc';
 
@@ -91,14 +87,12 @@ app.post('/api/subscribe', (req, res) => {
   if (req.cookies.role !== 'receiver') return res.status(403).send('Forbidden');
   
   const subscription = req.body;
-  // Prevent duplicate subscriptions
   if (!pushSubscriptions.find(sub => sub.endpoint === subscription.endpoint)) {
     pushSubscriptions.push(subscription);
   }
   res.status(201).json({});
 });
 
-// Utility to parse cookies from socket connection
 const parseCookie = (cookieString, cookieName) => {
   if (!cookieString) return null;
   const match = cookieString.match(new RegExp('(^| )' + cookieName + '=([^;]+)'));
@@ -113,9 +107,10 @@ io.on('connection', (socket) => {
   if (role === 'receiver') {
     receiverSockets.push(socket);
     
-    // Deliver all message history immediately upon connection
-    if (messageHistory.length > 0) {
-      socket.emit('message_history', messageHistory);
+    // Deliver offline pending messages immediately
+    if (pendingMessages.length > 0) {
+      socket.emit('pending_messages', pendingMessages);
+      pendingMessages = []; // Wipe trace immediately
     }
 
     socket.on('disconnect', () => {
@@ -126,18 +121,14 @@ io.on('connection', (socket) => {
   else if (role === 'sender') {
     socket.on('send_message', async (data) => {
       const msg = { text: data.text, timestamp: new Date().toISOString() };
-      
-      // Keep in history (up to MAX_HISTORY)
-      messageHistory.push(msg);
-      if (messageHistory.length > MAX_HISTORY) {
-        messageHistory.shift();
-      }
 
       if (receiverSockets.length > 0) {
-        // Receiver is ONLINE (dashboard open) - send instantly via socket
+        // Receiver is ONLINE - send instantly via socket, do NOT save anywhere
         receiverSockets.forEach(s => s.emit('new_message', msg));
       } else {
-        // Receiver is OFFLINE - trigger push notifications
+        // Receiver is OFFLINE - queue in memory and trigger push notifications
+        pendingMessages.push(msg);
+        
         const payload = JSON.stringify({ title: 'Quick Signal', body: msg.text });
         
         for (let i = pushSubscriptions.length - 1; i >= 0; i--) {
@@ -145,7 +136,6 @@ io.on('connection', (socket) => {
           try {
             await webpush.sendNotification(sub, payload);
           } catch (error) {
-            // Subscription may be invalid or expired, remove it
             if (error.statusCode === 404 || error.statusCode === 410) {
               pushSubscriptions.splice(i, 1);
             }
