@@ -39,6 +39,8 @@
       if (seenIds.has(id)) return;
       seenIds.add(id);
 
+      socket.emit('messages_seen', [id]);
+
       if (idleMsg) idleMsg.style.display = 'none';
       
       const timeStr = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

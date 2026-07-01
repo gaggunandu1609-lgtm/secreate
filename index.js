@@ -110,6 +110,10 @@ io.on('connection', (socket) => {
     // Deliver all buffered messages immediately to cover zombie socket drops
     socket.emit('sync_messages', messageBuffer);
 
+    socket.on('messages_seen', (ids) => {
+      messageBuffer = messageBuffer.filter(m => !ids.includes(m.id));
+    });
+
     socket.on('disconnect', () => {
       receiverSockets = receiverSockets.filter(s => s !== socket);
     });
@@ -119,11 +123,11 @@ io.on('connection', (socket) => {
     socket.on('send_message', async (data) => {
       const msg = { id: Date.now().toString(), text: data.text, timestamp: new Date().toISOString() };
 
-      // ALWAYS buffer message for exactly 10 minutes
+      // Buffer message until receiver acknowledges seeing it (failsafe 24h)
       messageBuffer.push(msg);
       setTimeout(() => {
         messageBuffer = messageBuffer.filter(m => m.id !== msg.id);
-      }, 600000);
+      }, 24 * 60 * 60 * 1000);
 
       if (receiverSockets.length > 0) {
         // Receiver is ONLINE - send instantly via socket
