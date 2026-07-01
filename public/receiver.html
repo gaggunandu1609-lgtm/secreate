@@ -62,9 +62,12 @@
       displayMessage(msg.text, msg.timestamp);
     });
 
-    socket.on('pending_messages', (msgs) => {
+    socket.on('message_history', (msgs) => {
+      // Clear container except for the idle message
+      container.innerHTML = '<p class="idle-text" id="idle-msg" style="display: none;">System Online. Monitoring active...</p>';
+      
       msgs.forEach(msg => {
-        displayMessage(msg.text + ' (Missed)', msg.timestamp);
+        displayMessage(msg.text, msg.timestamp);
       });
     });
 
