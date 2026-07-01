@@ -1,0 +1,29 @@
+{
+  "name": "secreate",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gaggunandu1609-lgtm/secreate.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gaggunandu1609-lgtm/secreate/issues"
+  },
+  "homepage": "https://github.com/gaggunandu1609-lgtm/secreate#readme",
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "socket.io": "^4.8.3",
+    "web-push": "^3.6.7"
+  }
+}

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gallery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <main class="container">
+    <!-- Extremely safe looking header -->
+    <header style="margin-bottom: 2rem;">
+      <h1 style="font-size: 1.5rem; text-align: left; color: #94a3b8; font-weight: 500;">My Collection</h1>
+    </header>
+
+    <div class="grid gallery-grid">
+      <div class="card photo-card" data-action="Near the temple. Please come outside.">
+        <img src="images/temple.png" alt="Temple">
+        <div class="glow"></div>
+      </div>
+
+      <div class="card photo-card" data-action="Near the bus stand.">
+        <img src="images/bus.png" alt="Bus Stand">
+        <div class="glow"></div>
+      </div>
+
+      <div class="card photo-card" data-action="Back home.">
+        <img src="images/home.png" alt="Home">
+        <div class="glow"></div>
+      </div>
+
+      <div class="card photo-card" data-action="On the way.">
+        <img src="images/road.png" alt="Road">
+        <div class="glow"></div>
+      </div>
+
+      <div class="card photo-card" data-action="Eating food.">
+        <img src="images/food.png" alt="Food">
+        <div class="glow"></div>
+      </div>
+
+      <div class="card photo-card" data-action="Need water.">
+        <img src="images/water.png" alt="Water">
+        <div class="glow"></div>
+      </div>
+    </div>
+    
+    <div style="text-align: center; margin-top: 3rem;">
+        <button onclick="logout()" class="logout-btn">Sign Out</button>
+    </div>
+
+    <!-- Checkmark overlay for visual effect -->
+    <div id="loading-overlay" class="hidden">
+      <div class="check-icon">
+        <svg viewBox="0 0 24 24">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+    </div>
+  </main>
+  
+  <script src="script.js"></script>
+  <script>
+      async function logout() {
+          await fetch('/api/logout', { method: 'POST' });
+          window.location.href = '/login.html';
+      }
+  </script>
+</body>
+</html>

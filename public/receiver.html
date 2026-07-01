@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body class="receiver-body">
+  <div class="receiver-header">
+    <div class="pulse-green"></div>
+    <h1>System Monitor</h1>
+  </div>
+  
+  <div class="receiver-container" id="messages-container">
+    <p class="idle-text" id="idle-msg">System Online. Monitoring active...</p>
+  </div>
+  
+  <div style="text-align: center; margin-top: 2rem; width: 100%; max-width: 600px;">
+      <button onclick="logout()" class="logout-btn">Disconnect</button>
+  </div>
+
+  <script>
+    async function logout() {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/login.html';
+    }
+
+    const socket = io();
+    const container = document.getElementById('messages-container');
+    const idleMsg = document.getElementById('idle-msg');
+
+    function displayMessage(text, timestamp) {
+      if (idleMsg) {
+        idleMsg.style.display = 'none';
+      }
+      
+      const timeStr = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      const el = document.createElement('div');
+      el.className = 'msg-card';
+      el.innerHTML = `
+        <div class="msg-content">
+          <div class="msg-text">${text}</div>
+          <div class="msg-time">${timeStr}</div>
+        </div>
+      `;
+      container.prepend(el);
+
+      // Play subtle sound if permitted by browser
+      try {
+        const audio = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...'); // basic beep placeholder, or just skip audio to be safe.
+        // audio.play();
+      } catch (e) {}
+    }
+
+    socket.on('new_message', (msg) => {
+      displayMessage(msg.text, msg.timestamp);
+    });
+
+    socket.on('pending_messages', (msgs) => {
+      msgs.forEach(msg => {
+        displayMessage(msg.text + ' (Missed)', msg.timestamp);
+      });
+    });
+
+    // --- WEB PUSH NOTIFICATION SETUP ---
+    async function setupPushNotifications() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        console.log('Push notifications are not supported by this browser.');
+        return;
+      }
+
+      try {
+        // Request permission
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          console.log('Push notification permission denied.');
+          return;
+        }
+
+        // Register Service Worker
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        
+        // Wait until Service Worker is active
+        await navigator.serviceWorker.ready;
+
+        // Fetch VAPID public key
+        const vapidRes = await fetch('/api/vapidPublicKey');
+        const vapidPublicKey = await vapidRes.text();
+        
+        // Convert VAPID key
+        function urlBase64ToUint8Array(base64String) {
+          const padding = '='.repeat((4 - base64String.length % 4) % 4);
+          const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+          const rawData = window.atob(base64);
+          const outputArray = new Uint8Array(rawData.length);
+          for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+          }
+          return outputArray;
+        }
+
+        // Subscribe to push
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+        });
+
+        // Send subscription to server
+        await fetch('/api/subscribe', {
+          method: 'POST',
+          body: JSON.stringify(subscription),
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        console.log('Push notifications enabled!');
+      } catch (error) {
+        console.error('Error setting up push notifications:', error);
+      }
+    }
+
+    // Initialize Push Notifications on load
+    setupPushNotifications();
+  </script>
+</body>
+</html>

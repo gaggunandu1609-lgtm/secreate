@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Server Status Gateway</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="login-body">
+  <div class="login-container">
+    <h2>Access Control</h2>
+    <p class="subtitle">Enter system PIN to proceed.</p>
+    
+    <input type="password" id="pin-input" placeholder="••••" autocomplete="off">
+    <button onclick="login()">Connect</button>
+    <p id="error-msg"></p>
+  </div>
+
+  <script>
+    async function login() {
+      const pin = document.getElementById('pin-input').value;
+      if (!pin) return;
+      
+      const btn = document.querySelector('button');
+      btn.innerText = 'Verifying...';
+      
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          window.location.href = data.redirect;
+        } else {
+          document.getElementById('error-msg').innerText = 'Connection Failed.';
+          btn.innerText = 'Connect';
+          document.getElementById('pin-input').value = '';
+        }
+      } catch (err) {
+        document.getElementById('error-msg').innerText = 'Network Error.';
+        btn.innerText = 'Connect';
+      }
+    }
+
+    document.getElementById('pin-input').addEventListener('keypress', function (e) {
+      if (e.key === 'Enter') {
+        login();
+      }
+    });
+  </script>
+</body>
+</html>
